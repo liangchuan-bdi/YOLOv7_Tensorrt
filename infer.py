@@ -1,6 +1,7 @@
 import cv2
 import tensorrt as trt
 import torch
+import time
 import numpy as np
 from collections import OrderedDict,namedtuple
 
@@ -95,10 +96,29 @@ def visualize(img,bbox_array):
         cv2.rectangle(img,(xmin,ymin),(xmax,ymax), (105, 237, 249), 2)
         img = cv2.putText(img, "class:"+str(clas)+" "+str(round(score,2)), (xmin,int(ymin)-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (105, 237, 249), 1)
     return img
-
-trt_engine = TRT_engine("./trt_model/yolov7_tiny_fp16.engine")
+start = time.time()
+trt_engine = TRT_engine("./trt_models/yolov7_fp16.engine")
+end = time.time()
+print("The time of execution of init engine is : {} ms".format((end-start) * 10**3, "ms"))
 img = cv2.imread("./pictures/zidane.jpg")
+
+start = time.time()
 results = trt_engine.predict(img,threshold=0.5)
+end = time.time()
+print("The time of execution of one-off tensort prediction is : {} ms".format((end-start) * 10**3, "ms"))
+
+avg_inference_time_ms = 0
+counter = 0
+for i in range(50):
+    start = time.time()
+    results = trt_engine.predict(img,threshold=0.5)
+    end = time.time()
+    avg_inference_time_ms = (avg_inference_time_ms * counter + (end-start)* 10**3)/(counter+1)
+    counter += 1
+    print("{}th iteration, the time of execution of tensort prediction is : {}".format(i, (end-start) * 10**3, "ms"))
+print("The AVG time of execution of tensort prediction is :{} ms".format(avg_inference_time_ms))
+
 img = visualize(img,results)
-cv2.imshow("img",img)
-cv2.waitKey(0)
+#cv2.imshow("img",img)
+#cv2.waitKey(0)
+cv2.imwrite("./results/zidane.jpg", img)
